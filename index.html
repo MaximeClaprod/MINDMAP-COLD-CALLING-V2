@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ScriptNav — C.lechantier</title>
+<style>
+:root {
+  --bg:#07090f;--surface:#0d1117;--surface2:#161b22;--border:#21262d;
+  --text:#e6edf3;--muted:#7d8590;
+  --accent-play:#3fb950;--accent-edit:#f0883e;--accent-del:#f85149;
+  --radius:12px;--font:'DM Mono','Fira Code','Courier New',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;overflow-x:hidden;}
+
+/* ══ TOPBAR ══ */
+#topbar{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(7,9,15,0.96);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;height:52px;padding:0 20px;gap:0;}
+#topbar .logo{font-size:13px;font-weight:700;color:var(--text);letter-spacing:.05em;margin-right:20px;white-space:nowrap;}
+#topbar .logo span{color:var(--accent-play);}
+.tab-btn{height:52px;padding:0 18px;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);font-family:var(--font);font-size:12px;letter-spacing:.08em;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:8px;}
+.tab-btn:hover{color:var(--text);}
+.tab-btn.active{color:var(--text);border-bottom-color:var(--accent-play);}
+.tab-btn.active.edit-tab{border-bottom-color:var(--accent-edit);}
+#topbar .spacer{flex:1;}
+#save-badge{font-size:10px;padding:3px 10px;border-radius:20px;background:rgba(63,185,80,.09);color:var(--accent-play);border:1px solid rgba(63,185,80,.27);letter-spacing:.08em;display:none;}
+
+/* ══ VIEWS ══ */
+.view{display:none;min-height:100vh;}
+.view.active{display:block;}
+
+/* ══ PERSONA SCREEN ══ */
+#persona-view{display:none;align-items:center;justify-content:center;padding:52px 16px 40px;position:relative;}
+#persona-view.active{display:flex;}
+#persona-bg{position:fixed;inset:0;pointer-events:none;z-index:0;background-image:linear-gradient(rgba(63,185,80,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(63,185,80,.06) 1px,transparent 1px);background-size:48px 48px;}
+#persona-box{position:relative;z-index:1;width:100%;max-width:520px;animation:fadeSlide .3s ease;}
+.persona-header{text-align:center;margin-bottom:32px;}
+.persona-header .pre{font-size:10px;letter-spacing:.2em;color:var(--muted);margin-bottom:10px;display:block;}
+.persona-header h1{font-size:26px;font-weight:800;color:var(--text);letter-spacing:-.03em;line-height:1.2;}
+.persona-header h1 span{color:var(--accent-play);}
+.persona-header p{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.6;}
+.persona-cards{display:flex;flex-direction:column;gap:12px;}
+.persona-card{background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:20px 22px;cursor:pointer;transition:all .18s;display:flex;align-items:center;gap:16px;position:relative;overflow:hidden;}
+.persona-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;opacity:0;transition:opacity .18s;}
+.persona-card.pm::before{background:#34d399;}
+.persona-card.mgr::before{background:#f472b6;}
+.persona-card:hover{transform:translateY(-2px);}
+.persona-card.pm:hover{border-color:rgba(52,211,153,.4);box-shadow:0 8px 32px rgba(52,211,153,.09);}
+.persona-card.mgr:hover{border-color:rgba(244,114,182,.4);box-shadow:0 8px 32px rgba(244,114,182,.09);}
+.persona-card.pm:hover::before,.persona-card.selected.pm::before{opacity:1;}
+.persona-card.mgr:hover::before,.persona-card.selected.mgr::before{opacity:1;}
+.persona-card.selected.pm{border-color:#34d399;box-shadow:0 0 0 3px rgba(52,211,153,.13);}
+.persona-card.selected.mgr{border-color:#f472b6;box-shadow:0 0 0 3px rgba(244,114,182,.13);}
+.persona-icon{font-size:30px;width:52px;height:52px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid transparent;}
+.persona-card.pm .persona-icon{background:rgba(52,211,153,.09);border-color:rgba(52,211,153,.2);}
+.persona-card.mgr .persona-icon{background:rgba(244,114,182,.09);border-color:rgba(244,114,182,.2);}
+.persona-info{flex:1;}
+.persona-title{font-size:14px;font-weight:800;margin-bottom:3px;}
+.persona-card.pm .persona-title{color:#34d399;}
+.persona-card.mgr .persona-title{color:#f472b6;}
+.persona-desc{font-size:11px;color:var(--muted);line-height:1.5;}
+.persona-arrow{font-size:16px;color:var(--border);transition:all .18s;flex-shrink:0;}
+.persona-card.pm:hover .persona-arrow,.persona-card.selected.pm .persona-arrow{color:#34d399;transform:translateX(3px);}
+.persona-card.mgr:hover .persona-arrow,.persona-card.selected.mgr .persona-arrow{color:#f472b6;transform:translateX(3px);}
+#persona-start-btn{margin-top:20px;width:100%;padding:14px;border-radius:10px;border:none;font-family:var(--font);font-size:13px;font-weight:800;letter-spacing:.1em;cursor:pointer;transition:all .18s;opacity:.35;pointer-events:none;background:var(--accent-play);color:#fff;}
+#persona-start-btn.ready{opacity:1;pointer-events:all;}
+#persona-start-btn.ready:hover{transform:translateY(-1px);box-shadow:0 6px 24px rgba(63,185,80,.27);}
+
+/* ══ PLAY HEADER BAR (persona + breadcrumb) ══ */
+#play-topbar{position:fixed;top:52px;left:0;right:0;z-index:90;background:rgba(7,9,15,.92);border-bottom:1px solid var(--border);padding:0 20px;height:38px;display:flex;align-items:center;gap:12px;backdrop-filter:blur(8px);}
+#persona-badge-value{font-size:11px;font-weight:700;letter-spacing:.06em;}
+.bar-sep{color:var(--border);font-size:12px;}
+#bc-crumbs-wrap{display:flex;align-items:center;gap:4px;flex:1;overflow:hidden;}
+.bc-label{color:var(--muted);font-size:10px;letter-spacing:.08em;white-space:nowrap;}
+.bc-sep{color:#2d333b;}
+.bc-crumb{color:var(--muted);font-size:10px;cursor:default;white-space:nowrap;}
+.bc-crumb.clickable{cursor:pointer;text-decoration:underline;}
+.bc-crumb.active{font-weight:700;}
+#play-topbar-right{display:flex;gap:8px;flex-shrink:0;}
+#bc-reset,#persona-change-btn{background:none;border:1px solid var(--border);color:var(--muted);font-size:10px;padding:2px 10px;border-radius:4px;cursor:pointer;font-family:var(--font);letter-spacing:.06em;transition:all .15s;}
+#bc-reset:hover,#persona-change-btn:hover{color:var(--text);border-color:#444c56;}
+
+/* ══ PLAY VIEW ══ */
+#play-view{display:none;align-items:center;justify-content:center;min-height:100vh;padding:110px 16px 40px;position:relative;}
+#play-view.active{display:flex;flex-direction:column;}
+#bg-grid{position:fixed;inset:0;pointer-events:none;z-index:0;background-size:48px 48px;transition:background-image .4s;}
+
+/* card */
+#play-card{position:relative;z-index:1;width:100%;max-width:590px;border-radius:var(--radius);overflow:hidden;border:1.5px solid transparent;box-shadow:0 8px 48px rgba(0,0,0,.7);animation:fadeSlide .22s ease;}
+@keyframes fadeSlide{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+#card-topbar{height:3px;}
+#card-head{padding:22px 26px 12px;}
+#card-tag{display:inline-block;font-size:10px;letter-spacing:.14em;font-weight:700;padding:3px 12px;border-radius:20px;border:1px solid transparent;margin-bottom:8px;}
+#card-title{font-size:21px;font-weight:800;color:#f0f6fc;letter-spacing:-.02em;line-height:1.2;}
+#card-body{padding:0 26px 16px;}
+.content-box{background:rgba(255,255,255,.04);border:1px solid transparent;border-radius:10px;padding:15px 17px;color:#adbac7;font-size:14px;line-height:1.75;white-space:pre-line;}
+.tip-box{background:rgba(255,255,255,.02);border-left:2px solid transparent;border-radius:0 6px 6px 0;padding:9px 13px;margin-top:10px;font-size:11px;color:var(--muted);line-height:1.6;}
+.checklist-wrap{background:rgba(255,255,255,.04);border:1px solid transparent;border-radius:10px;padding:4px 16px;}
+.check-item{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid transparent;}
+.check-item:last-child{border-bottom:none!important;}
+.check-num{min-width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;border:1px solid transparent;}
+.check-text{color:#adbac7;font-size:13px;line-height:1.6;}
+#card-choices{padding:0 26px 26px;display:flex;flex-direction:column;gap:8px;}
+.choices-lbl{font-size:10px;color:#444c56;letter-spacing:.1em;margin-bottom:4px;}
+.choice-btn{background:transparent;border:1.5px solid transparent;border-radius:10px;padding:12px 15px;color:#cdd9e5;font-size:13px;text-align:left;cursor:pointer;transition:all .14s;display:flex;align-items:center;gap:10px;font-family:var(--font);width:100%;}
+.choice-num{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;border:1px solid transparent;}
+#card-end{padding:0 26px 26px;}
+.end-msg{text-align:center;padding:20px;font-size:13px;border-radius:10px;border:1px solid transparent;letter-spacing:.06em;}
+#play-back{margin-top:12px;z-index:1;position:relative;background:none;border:1px solid var(--border);color:var(--muted);font-size:12px;padding:8px 22px;border-radius:8px;cursor:pointer;font-family:var(--font);letter-spacing:.05em;transition:all .15s;display:none;}
+#play-back:hover{color:var(--text);border-color:#444c56;}
+
+/* ══ EDIT VIEW ══ */
+#edit-view{padding:72px 20px 60px;max-width:1100px;margin:0 auto;}
+#edit-view.active{display:block;}
+.edit-header{display:flex;align-items:center;gap:16px;margin-bottom:28px;padding-bottom:16px;border-bottom:1px solid var(--border);}
+.edit-header h1{font-size:17px;font-weight:700;color:var(--text);}
+.edit-header p{font-size:12px;color:var(--muted);margin-top:2px;}
+.btn-green{padding:9px 18px;border-radius:8px;background:var(--accent-play);color:#fff;border:none;font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.06em;transition:opacity .15s;}
+.btn-green:hover{opacity:.85;}
+#node-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;}
+.node-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;transition:border-color .15s;}
+.node-card:hover{border-color:#444c56;}
+.node-card-top{height:3px;}
+.node-card-head{padding:12px 15px 8px;display:flex;align-items:flex-start;justify-content:space-between;gap:8px;}
+.node-card-title{font-size:13px;font-weight:700;color:var(--text);flex:1;}
+.node-card-type{font-size:9px;letter-spacing:.12em;font-weight:700;padding:2px 8px;border-radius:12px;border:1px solid transparent;white-space:nowrap;flex-shrink:0;}
+.node-card-body{padding:0 15px 8px;}
+.node-card-content{font-size:11px;color:var(--muted);line-height:1.6;max-height:50px;overflow:hidden;position:relative;}
+.node-card-content::after{content:'';position:absolute;bottom:0;left:0;right:0;height:18px;background:linear-gradient(transparent,var(--surface));}
+.node-card-choices{padding:0 15px 10px;display:flex;flex-wrap:wrap;gap:5px;}
+.choice-chip{font-size:10px;padding:2px 9px;border-radius:20px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.node-card-actions{padding:8px 15px 12px;display:flex;gap:8px;border-top:1px solid var(--border);}
+.btn-edit-node,.btn-del-node{flex:1;padding:6px 10px;border-radius:7px;font-family:var(--font);font-size:11px;font-weight:700;letter-spacing:.06em;cursor:pointer;transition:all .14s;border:1px solid transparent;}
+.btn-edit-node{background:rgba(240,136,62,.09);border-color:rgba(240,136,62,.27);color:var(--accent-edit);}
+.btn-edit-node:hover{background:rgba(240,136,62,.2);}
+.btn-del-node{background:rgba(248,81,73,.09);border-color:rgba(248,81,73,.27);color:var(--accent-del);flex:0 0 auto;padding:6px 12px;}
+.btn-del-node:hover{background:rgba(248,81,73,.2);}
+
+/* ══ MODAL ══ */
+#modal-overlay{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px;}
+#modal-overlay.open{display:flex;}
+#modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:620px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 80px rgba(0,0,0,.8);animation:fadeSlide .2s ease;}
+#modal-head{padding:18px 22px 14px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);z-index:1;}
+#modal-title{font-size:15px;font-weight:700;color:var(--text);flex:1;}
+#modal-close{width:28px;height:28px;border-radius:6px;background:none;border:1px solid var(--border);color:var(--muted);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .14s;}
+#modal-close:hover{border-color:#444c56;color:var(--text);}
+#modal-body{padding:18px 22px;display:flex;flex-direction:column;gap:16px;}
+.form-group{display:flex;flex-direction:column;gap:5px;}
+.form-label{font-size:10px;letter-spacing:.1em;color:var(--muted);font-weight:700;}
+.form-input,.form-select,.form-textarea{background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:var(--font);font-size:13px;padding:9px 13px;border-radius:8px;outline:none;width:100%;transition:border-color .15s;}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--accent-edit);}
+.form-textarea{resize:vertical;min-height:80px;line-height:1.6;}
+.form-select option{background:var(--surface2);}
+.color-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.color-preview{display:flex;align-items:center;gap:8px;}
+input[type="color"]{width:34px;height:34px;border-radius:6px;border:1px solid var(--border);padding:2px;background:var(--surface2);cursor:pointer;}
+#choices-list{display:flex;flex-direction:column;gap:8px;}
+.choice-row{display:flex;gap:8px;align-items:stretch;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 11px;}
+.choice-row-inner{flex:1;display:flex;flex-direction:column;gap:5px;}
+.choice-row-inner input,.choice-row-inner select{background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font);font-size:12px;padding:6px 9px;border-radius:6px;outline:none;width:100%;transition:border-color .15s;}
+.choice-row-inner input:focus,.choice-row-inner select:focus{border-color:var(--accent-edit);}
+.choice-row-inner select option{background:var(--bg);}
+.btn-rm-choice{background:rgba(248,81,73,.09);border:1px solid rgba(248,81,73,.27);color:var(--accent-del);border-radius:6px;width:28px;cursor:pointer;font-size:14px;transition:background .14s;flex-shrink:0;}
+.btn-rm-choice:hover{background:rgba(248,81,73,.27);}
+#btn-add-choice{background:none;border:1px dashed var(--border);color:var(--muted);font-family:var(--font);font-size:11px;padding:8px;border-radius:8px;cursor:pointer;letter-spacing:.08em;transition:all .14s;width:100%;}
+#btn-add-choice:hover{border-color:var(--accent-edit);color:var(--accent-edit);}
+#items-list{display:flex;flex-direction:column;gap:7px;}
+.item-row{display:flex;gap:8px;align-items:center;}
+.item-row input{flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:var(--font);font-size:12px;padding:8px 11px;border-radius:8px;outline:none;transition:border-color .15s;}
+.item-row input:focus{border-color:var(--accent-edit);}
+.btn-rm-item{background:rgba(248,81,73,.09);border:1px solid rgba(248,81,73,.27);color:var(--accent-del);border-radius:6px;width:30px;height:34px;cursor:pointer;font-size:14px;transition:background .14s;flex-shrink:0;}
+.btn-rm-item:hover{background:rgba(248,81,73,.27);}
+#btn-add-item{background:none;border:1px dashed var(--border);color:var(--muted);font-family:var(--font);font-size:11px;padding:8px;border-radius:8px;cursor:pointer;letter-spacing:.08em;transition:all .14s;width:100%;}
+#btn-add-item:hover{border-color:var(--accent-edit);color:var(--accent-edit);}
+#modal-foot{padding:14px 22px 18px;display:flex;gap:10px;justify-content:flex-end;border-top:1px solid var(--border);}
+.btn-cancel{padding:8px 18px;border-radius:8px;background:none;border:1px solid var(--border);color:var(--muted);font-family:var(--font);font-size:12px;cursor:pointer;transition:all .14s;}
+.btn-cancel:hover{border-color:#444c56;color:var(--text);}
+.btn-save{padding:8px 20px;border-radius:8px;background:var(--accent-edit);color:#fff;border:none;font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.06em;transition:opacity .14s;}
+.btn-save:hover{opacity:.85;}
+
+/* ══ CONFIRM + TOAST ══ */
+#confirm-overlay{display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.75);align-items:center;justify-content:center;}
+#confirm-overlay.open{display:flex;}
+#confirm-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:26px 30px;max-width:360px;width:90%;text-align:center;}
+#confirm-box h3{font-size:14px;margin-bottom:8px;color:var(--text);}
+#confirm-box p{font-size:12px;color:var(--muted);margin-bottom:20px;line-height:1.6;}
+#confirm-box .btns{display:flex;gap:10px;justify-content:center;}
+.btn-confirm-yes{padding:8px 22px;border-radius:8px;background:var(--accent-del);color:#fff;border:none;font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer;}
+.btn-confirm-no{padding:8px 22px;border-radius:8px;background:none;border:1px solid var(--border);color:var(--muted);font-family:var(--font);font-size:12px;cursor:pointer;}
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:12px;padding:10px 20px;border-radius:8px;z-index:999;pointer-events:none;opacity:0;transition:opacity .2s;letter-spacing:.05em;white-space:nowrap;}
+#toast.show{opacity:1;}
+::-webkit-scrollbar{width:6px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:#30363d;border-radius:3px;}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div id="topbar">
+  <div class="logo">📞 <span>Script</span>Nav</div>
+  <button class="tab-btn active" id="tab-play" onclick="switchTab('play')">▶ APPEL EN COURS</button>
+  <button class="tab-btn edit-tab" id="tab-edit" onclick="switchTab('edit')">✏️ ÉDITEUR</button>
+  <div class="spacer"></div>
+  <span id="save-badge">✓ SAUVEGARDÉ</span>
+</div>
+
+<div id="bg-grid"></div>
+
+<!-- ══ PERSONA SCREEN ══ -->
+<div id="persona-view" class="view active">
+  <div id="persona-bg"></div>
+  <div id="persona-box">
+    <div class="persona-header">
+      <span class="pre">AVANT L'APPEL</span>
+      <h1>Quel est le <span>profil</span> ?</h1>
+      <p>Sélectionne le persona pour charger le bon script directement.</p>
+    </div>
+    <div class="persona-cards">
+      <div class="persona-card pm" id="card-pm" onclick="selectPersona('pm')">
+        <div class="persona-icon">🧑‍💼</div>
+        <div class="persona-info">
+          <div class="persona-title">Project Manager</div>
+          <div class="persona-desc">Gère directement les projets IRVE / PV. Suit les chantiers, coordonne les installateurs.</div>
+        </div>
+        <div class="persona-arrow">→</div>
+      </div>
+      <div class="persona-card mgr" id="card-mgr" onclick="selectPersona('mgr')">
+        <div class="persona-icon">👔</div>
+        <div class="persona-info">
+          <div class="persona-title">Responsable Project Manager</div>
+          <div class="persona-desc">Supervise une équipe de PMs. Vision globale, reporting, scalabilité, décision budgétaire.</div>
+        </div>
+        <div class="persona-arrow">→</div>
+      </div>
+    </div>
+    <button id="persona-start-btn" onclick="startCall()">▶ LANCER L'APPEL</button>
+  </div>
+</div>
+
+<!-- ══ PLAY VIEW ══ -->
+<div id="play-view" class="view">
+  <div id="play-topbar">
+    <span id="persona-badge-value"></span>
+    <span class="bar-sep">·</span>
+    <span class="bc-label">PARCOURS</span>
+    <div id="bc-crumbs-wrap"><span id="bc-crumbs"></span></div>
+    <div id="play-topbar-right">
+      <button id="bc-reset" onclick="resetPlay()">↺ Reset</button>
+      <button id="persona-change-btn" onclick="changePersona()">⇄ Persona</button>
+    </div>
+  </div>
+  <div id="play-card">
+    <div id="card-topbar"></div>
+    <div id="card-head">
+      <span id="card-tag"></span>
+      <h2 id="card-title"></h2>
+    </div>
+    <div id="card-body"></div>
+    <div id="card-choices"></div>
+    <div id="card-end" style="display:none"><div class="end-msg" id="end-msg">✅ FIN DU SCRIPT</div></div>
+  </div>
+  <button id="play-back" onclick="goBack()">← Étape précédente</button>
+</div>
+
+<!-- ══ EDIT VIEW ══ -->
+<div id="edit-view" class="view">
+  <div class="edit-header">
+    <div><h1>✏️ Éditeur de script</h1><p>Modifiez les étapes, ajoutez des objections, créez de nouveaux chemins.</p></div>
+    <button class="btn-green" onclick="openModal(null)">+ Nouvelle étape</button>
+  </div>
+  <div id="node-grid"></div>
+</div>
+
+<!-- MODAL -->
+<div id="modal-overlay">
+  <div id="modal">
+    <div id="modal-head"><span id="modal-title">Étape</span><button id="modal-close" onclick="closeModal()">✕</button></div>
+    <div id="modal-body">
+      <div class="form-group">
+        <label class="form-label">ID UNIQUE</label>
+        <input class="form-input" id="f-id" placeholder="ex: objection_prix"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">TITRE / LABEL</label>
+        <input class="form-input" id="f-label" placeholder="🎯 Mon étape"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">TYPE</label>
+        <select class="form-select" id="f-type" onchange="onTypeChange()">
+          <option value="question">QUESTION</option>
+          <option value="reponse">RÉPONSE TYPE</option>
+          <option value="pitch">PITCH</option>
+          <option value="checklist">CHECKLIST</option>
+          <option value="solution">SOLUTION</option>
+          <option value="closing">CLOSING</option>
+          <option value="action">ACTION</option>
+          <option value="entry">DÉPART</option>
+        </select>
+      </div>
+      <div class="form-group" id="f-content-group">
+        <label class="form-label">CONTENU</label>
+        <textarea class="form-textarea" id="f-content" placeholder="Texte de l'étape..."></textarea>
+      </div>
+      <div class="form-group" id="f-tip-group">
+        <label class="form-label">💡 NOTE DISCRÈTE (conseil interne, visible uniquement pendant l'appel)</label>
+        <input class="form-input" id="f-tip" placeholder="Ex: Si forte réaction émotionnelle → creuser davantage"/>
+      </div>
+      <div class="form-group" id="f-items-group" style="display:none">
+        <label class="form-label">QUESTIONS DE LA CHECKLIST</label>
+        <div id="items-list"></div>
+        <button id="btn-add-item" onclick="addItemRow()">+ Ajouter une question</button>
+      </div>
+      <div class="color-row">
+        <div class="form-group">
+          <label class="form-label">COULEUR DE FOND</label>
+          <div class="color-preview">
+            <input type="color" id="f-color" value="#0c1a2e"/>
+            <input class="form-input" id="f-color-hex" value="#0c1a2e" style="width:110px" oninput="syncColorFromHex('f-color','f-color-hex')"/>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">COULEUR ACCENT</label>
+          <div class="color-preview">
+            <input type="color" id="f-accent" value="#34d399"/>
+            <input class="form-input" id="f-accent-hex" value="#34d399" style="width:110px" oninput="syncColorFromHex('f-accent','f-accent-hex')"/>
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">RÉPONSES DU PROSPECT → ÉTAPES SUIVANTES</label>
+        <div id="choices-list"></div>
+        <button id="btn-add-choice" onclick="addChoiceRow()">+ Ajouter une réponse</button>
+      </div>
+    </div>
+    <div id="modal-foot">
+      <button class="btn-cancel" onclick="closeModal()">Annuler</button>
+      <button class="btn-save" onclick="saveNode()">💾 Sauvegarder</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM -->
+<div id="confirm-overlay">
+  <div id="confirm-box">
+    <h3>Supprimer cette étape ?</h3>
+    <p>Cette action est irréversible.</p>
+    <div class="btns">
+      <button class="btn-confirm-no" onclick="closeConfirm()">Annuler</button>
+      <button class="btn-confirm-yes" id="confirm-yes-btn">Supprimer</button>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+const TYPE_TAG = {
+  entry:'DÉPART', question:'QUESTION', reponse:'RÉPONSE TYPE',
+  pitch:'PITCH', checklist:'CHECKLIST', solution:'SOLUTION',
+  closing:'CLOSING', action:'ACTION',
+};
+
+// ══════════════════════════════════════════════════════════════
+// SCRIPT DATA
+// ══════════════════════════════════════════════════════════════
+const DEFAULT_NODES = {
+
+  // ─── ACCROCHE ───────────────────────────────────────────
+  start: {
+    id:'start', type:'entry', label:'📞 Accroche',
+    content:'Bonjour M./Mme [Nom], Maxime Dubos de C.lechantier.\nJe vous appelle pour un sujet de suivi de chantiers IRVE et photovoltaïque — je serai bref.\nVous avez 30 secondes ?',
+    tip:'Ton neutre et posé. Pause après la question.',
+    color:'#0f172a', accent:'#38bdf8',
+    choices:[
+      {label:'✅ Oui, allez-y', next:'pm_pitch'},
+      {label:'⏱ Pas le temps', next:'pas_temps'},
+    ],
+  },
+  start_mgr: {
+    id:'start_mgr', type:'entry', label:'📞 Accroche',
+    content:'Bonjour M./Mme [Nom], Maxime Dubos de C.lechantier.\nJe vous appelle pour un sujet de suivi de chantiers IRVE et photovoltaïque — je serai bref.\nVous avez 30 secondes ?',
+    tip:'Ton neutre et posé. Pause après la question.',
+    color:'#0f172a', accent:'#38bdf8',
+    choices:[
+      {label:'✅ Oui, allez-y', next:'mgr_pitch'},
+      {label:'⏱ Pas le temps', next:'pas_temps_mgr'},
+    ],
+  },
+  pas_temps: {
+    id:'pas_temps', type:'reponse', label:'⏱ Pas le temps',
+    content:'Je comprends tout à fait.\nEn une phrase : on aide les PMs IRVE à suivre leurs chantiers à distance sans dépendre des retours installateurs.\nÇa vous parle ?',
+    tip:'Rester calme, ne pas insister. Si non → proposer un créneau.',
+    color:'#1e293b', accent:'#f59e0b',
+    choices:[
+      {label:'Oui, dites-moi plus', next:'pm_pitch'},
+      {label:'Non, pas intéressé', next:'rappel'},
+    ],
+  },
+  pas_temps_mgr: {
+    id:'pas_temps_mgr', type:'reponse', label:'⏱ Pas le temps',
+    content:'Je comprends tout à fait.\nEn une phrase : on aide les responsables d\'équipes IRVE à avoir une vision claire de tous leurs projets sans dépendre des remontées.\nÇa vous parle ?',
+    tip:'Rester calme. Si non → proposer un créneau de rappel.',
+    color:'#1e293b', accent:'#f59e0b',
+    choices:[
+      {label:'Oui, dites-moi plus', next:'mgr_pitch'},
+      {label:'Non, pas intéressé', next:'rappel'},
+    ],
+  },
+  rappel: {
+    id:'rappel', type:'action', label:'📅 Fixer un créneau',
+    content:'Pas de problème.\n"Quand serait le bon moment pour que je vous rappelle ?"',
+    color:'#1e293b', accent:'#94a3b8', choices:[],
+  },
+
+  // ════════════════════════════════════════════
+  // SCRIPT PROJECT MANAGER
+  // ════════════════════════════════════════════
+
+  pm_pitch: {
+    id:'pm_pitch', type:'pitch', label:'🎯 Pitch',
+    content:'On aide des project managers IRVE et photovoltaïque à suivre leurs projets à distance et à gérer plus d\'installations en parallèle, sans multiplier les déplacements terrain ni les relances installateurs.\n\nPour voir si c\'est pertinent pour vous — comment vous organisez-vous aujourd\'hui pour suivre l\'avancement de vos chantiers ?',
+    tip:'Pitch court, puis question ouverte immédiate. Laisser parler.',
+    color:'#0c1a2e', accent:'#34d399',
+    choices:[
+      {label:'WhatsApp / photos installateurs', next:'pm_s_whatsapp'},
+      {label:'Déplacements terrain réguliers', next:'pm_s_terrain'},
+      {label:'Outil interne / logiciel', next:'pm_s_outil'},
+      {label:'Autre organisation', next:'pm_miroir_autre'},
+    ],
+  },
+  pm_s_whatsapp: {
+    id:'pm_s_whatsapp', type:'reponse', label:'📱 Suivi WhatsApp',
+    content:'Donc vous dépendez des photos et messages que les installateurs vous envoient — et si quelqu\'un ne répond pas, vous ne savez pas où ça en est ?',
+    tip:'Reformuler pour confirmer. Attendre la validation avant de continuer.',
+    color:'#0c1a2e', accent:'#34d399',
+    choices:[{label:'→ Creuser les difficultés', next:'pm_pain'}],
+  },
+  pm_s_terrain: {
+    id:'pm_s_terrain', type:'reponse', label:'🚗 Déplacements terrain',
+    content:'Vous devez donc vous déplacer régulièrement pour avoir une vision réelle de l\'avancement — combien de fois par semaine environ ?',
+    tip:'Quantifier. Plus c\'est fréquent, plus le pain est fort.',
+    color:'#0c1a2e', accent:'#34d399',
+    choices:[{label:'→ Creuser les difficultés', next:'pm_pain'}],
+  },
+  pm_s_outil: {
+    id:'pm_s_outil', type:'reponse', label:'🛠 Outil interne',
+    content:'Cet outil vous donne une vision en temps réel du terrain, ou c\'est plutôt du reporting saisi manuellement par vos équipes ?',
+    tip:'Différence clé : données automatiques vs saisie manuelle. Si manuel → pain probable.',
+    color:'#0c1a2e', accent:'#34d399',
+    choices:[{label:'→ Creuser les difficultés', next:'pm_pain'}],
+  },
+  pm_miroir_autre: {
+    id:'pm_miroir_autre', type:'question', label:'🪞 Préciser l\'organisation',
+    content:'Intéressant. Et concrètement, ça fonctionne bien aujourd\'hui ou il y a des moments où vous manquez d\'information sur un chantier ?',
+    tip:'Question miroir ouverte. Laisser parler sans interrompre.',
+    color:'#0c1a2e', accent:'#34d399',
+    choices:[{label:'→ Creuser les difficultés', next:'pm_pain'}],
+  },
+
+  pm_pain: {
+    id:'pm_pain', type:'checklist', label:'🔥 Difficultés rencontrées',
+    items:[
+      'Vous devez souvent relancer les installateurs pour savoir où ils en sont ?',
+      'Il vous arrive de découvrir un retard trop tard pour réagir ?',
+      'Combien de projets gérez-vous en parallèle en ce moment ?',
+      'Combien de temps par semaine passez-vous juste à coordonner et faire le point ?',
+    ],
+    tip:'Poser les questions une par une. Laisser silence après chaque réponse. Plus la frustration est forte, plus c\'est bon signe.',
+    color:'#0c1a2e', accent:'#fb923c',
+    choices:[
+      {label:'Oui — retards, relances fréquentes', next:'pm_pain_fort'},
+      {label:'Quelques irritants mais ça tourne', next:'pm_pain_leger'},
+    ],
+  },
+  pm_pain_fort: {
+    id:'pm_pain_fort', type:'reponse', label:'✅ Problème confirmé',
+    content:'Donc le vrai problème, c\'est que vous n\'avez pas de visibilité fiable sur vos chantiers sans dépendre des retours de vos installateurs — c\'est bien ça ?',
+    tip:'Miroir : reformuler dans ses mots. Valider avant de parler impact.',
+    color:'#0c1a2e', accent:'#fb923c',
+    choices:[{label:'→ Mesurer les conséquences', next:'pm_impact'}],
+  },
+  pm_pain_leger: {
+    id:'pm_pain_leger', type:'reponse', label:'🤔 Pain à creuser',
+    content:'"Je comprends. Permettez-moi de vous poser une question directe : si vous deviez doubler votre portefeuille de projets demain, avec votre organisation actuelle — qu\'est-ce qui lâcherait en premier ?"',
+    tip:'Question provocatrice pour révéler un pain latent sur la scalabilité.',
+    color:'#0c1a2e', accent:'#fb923c',
+    choices:[{label:'→ Mesurer les conséquences', next:'pm_impact'}],
+  },
+
+  pm_impact: {
+    id:'pm_impact', type:'question', label:'📊 Conséquences concrètes',
+    content:'Et ce manque de visibilité, ça a un impact concret pour vous ?\n\nJe pense à des projets livrés en retard, des clients mécontents, trop de temps passé à coordonner... ou une difficulté à prendre plus de volume ?',
+    tip:'Laisser choisir. Ne pas orienter. La réponse détermine votre angle de vente.',
+    color:'#0c1a2e', accent:'#a78bfa',
+    choices:[
+      {label:'Retards / tensions clients', next:'pm_impact_retards'},
+      {label:'Trop de temps perdu à coordonner', next:'pm_impact_temps'},
+      {label:'Impossible de prendre plus de projets', next:'pm_impact_scale'},
+    ],
+  },
+  pm_impact_retards: {
+    id:'pm_impact_retards', type:'reponse', label:'⚠️ Retards clients',
+    content:'Ces retards, est-ce que ça a déjà eu un impact sur votre relation client ou sur des renouvellements de contrats ?',
+    tip:'Relier à la réputation et au business long terme.',
+    color:'#0c1a2e', accent:'#a78bfa',
+    choices:[{label:'→ Y a-t-il une urgence ?', next:'pm_urgence'}],
+  },
+  pm_impact_temps: {
+    id:'pm_impact_temps', type:'reponse', label:'⏰ Temps perdu',
+    content:'Si vous récupériez ce temps de coordination, vous pourriez absorber combien de projets supplémentaires avec la même équipe ?',
+    tip:'Transformer le temps perdu en opportunité business manquée.',
+    color:'#0c1a2e', accent:'#a78bfa',
+    choices:[{label:'→ Y a-t-il une urgence ?', next:'pm_urgence'}],
+  },
+  pm_impact_scale: {
+    id:'pm_impact_scale', type:'reponse', label:'📈 Croissance bloquée',
+    content:'Donc la croissance est limitée par la capacité de suivi, pas par le nombre de projets disponibles sur le marché ?',
+    tip:'Très fort. Le problème n\'est pas le marché mais l\'organisation interne.',
+    color:'#0c1a2e', accent:'#a78bfa',
+    choices:[{label:'→ Y a-t-il une urgence ?', next:'pm_urgence'}],
+  },
+
+  pm_urgence: {
+    id:'pm_urgence', type:'question', label:'⏰ Urgence & timing',
+    content:'Est-ce qu\'il y a un moment dans les prochains mois où ce sujet devient vraiment prioritaire pour vous ?\n\nUne montée en charge prévue, un objectif fixé par votre direction, une saison chargée qui approche ?',
+    tip:'Ne pas fabriquer l\'urgence. La capturer si elle existe. Si rien → "Qu\'est-ce qui ferait que ce sujet devient prioritaire ?"',
+    color:'#0d1525', accent:'#f59e0b',
+    choices:[
+      {label:'Oui — échéance ou objectif précis', next:'pm_urgence_oui'},
+      {label:'Pas d\'urgence particulière', next:'pm_urgence_non'},
+    ],
+  },
+  pm_urgence_oui: {
+    id:'pm_urgence_oui', type:'reponse', label:'🎯 Urgence identifiée',
+    content:'C\'est important. Si on ne met rien en place avant cette échéance, quel est le risque concret pour vous ?',
+    tip:'Ancrer la conséquence de l\'inaction à la date. C\'est votre levier pour le closing.',
+    color:'#0d1525', accent:'#f59e0b',
+    choices:[{label:'→ Vérifier le pouvoir de décision', next:'pm_decision'}],
+  },
+  pm_urgence_non: {
+    id:'pm_urgence_non', type:'reponse', label:'📆 Pas d\'urgence immédiate',
+    content:'"Je comprends. Si dans 6 mois votre organisation n\'a pas changé, vous aurez atteint vos objectifs de volume ?"',
+    tip:'Créer une prise de conscience sur le coût de l\'inaction.',
+    color:'#0d1525', accent:'#f59e0b',
+    choices:[{label:'→ Vérifier le pouvoir de décision', next:'pm_decision'}],
+  },
+
+  pm_decision: {
+    id:'pm_decision', type:'checklist', label:'🔑 Décision & organisation',
+    items:[
+      'Pour un outil comme ça, c\'est vous qui décidez ou il y a d\'autres personnes impliquées ?',
+      'Vous avez un budget dédié pour ce type d\'outil, ou ça nécessite une validation ?',
+      'Quel est votre process habituel pour adopter un nouvel outil dans votre équipe ?',
+    ],
+    tip:'Crucial. Si le PM n\'a pas le pouvoir de décision → identifier qui l\'a et proposer de l\'inclure dans la démo.',
+    color:'#0a1a12', accent:'#34d399',
+    choices:[
+      {label:'Décideur direct, autonome', next:'pm_decision_oui'},
+      {label:'Validation N+1 ou direction requise', next:'pm_decision_non'},
+    ],
+  },
+  pm_decision_oui: {
+    id:'pm_decision_oui', type:'reponse', label:'✅ Pouvoir de décision',
+    content:'Parfait. Si ce qu\'on vous montre répond à ce que vous m\'avez décrit, vous seriez en mesure de décider sur quel horizon ?',
+    tip:'Qualifier le délai. Éviter les "on verra" sans date.',
+    color:'#0a1a12', accent:'#34d399',
+    choices:[{label:'→ Présenter la solution', next:'pm_solution'}],
+  },
+  pm_decision_non: {
+    id:'pm_decision_non', type:'reponse', label:'👥 Décision partagée',
+    content:'Tout à fait normal. Est-ce qu\'on pourrait prévoir une démo courte avec votre responsable ? Comme ça tout le monde a le même niveau d\'info pour décider sereinement.',
+    tip:'Toujours essayer d\'accéder au vrai décideur. Ne pas "vendre" via un intermédiaire.',
+    color:'#0a1a12', accent:'#34d399',
+    choices:[{label:'→ Présenter la solution', next:'pm_solution'}],
+  },
+
+  pm_solution: {
+    id:'pm_solution', type:'solution', label:'💡 Solution',
+    content:'On installe un système de suivi visuel automatisé directement sur les chantiers.\n\nConcrètement :\n• Photos horodatées automatiques — sans dépendre des installateurs\n• Vision en temps réel de chaque chantier depuis votre bureau\n• Alertes si un projet prend du retard\n\nCertaines équipes absorbent 30 à 50 % de projets supplémentaires avec la même équipe.',
+    color:'#0c1a2e', accent:'#34d399',
+    choices:[{label:'→ Proposer un rendez-vous', next:'pm_closing'}],
+  },
+  pm_closing: {
+    id:'pm_closing', type:'closing', label:'📅 Closing',
+    content:'Je ne suis pas encore certain que ce soit parfaitement adapté à votre situation — mais ce que vous m\'avez décrit ressemble vraiment à ce qu\'on aide à résoudre.\n\nOn peut prendre 20 minutes pour regarder un cas concret ensemble, et vous jugerez par vous-même.\n\nVous seriez disponible jeudi ou vendredi ?',
+    tip:'Rappeler le problème spécifique évoqué. Formulation "vous jugerez" = pas de pression.',
+    color:'#0c1a2e', accent:'#34d399', choices:[],
+  },
+
+  // ════════════════════════════════════════════
+  // SCRIPT RESPONSABLE PM
+  // ════════════════════════════════════════════
+
+  mgr_pitch: {
+    id:'mgr_pitch', type:'pitch', label:'🎯 Pitch',
+    content:'On aide des responsables d\'équipes projets IRVE et photovoltaïque à garder une vision claire de tous leurs chantiers, tout en permettant à leurs équipes de prendre plus de projets sans recruter.\n\nPour voir si c\'est pertinent — comment vous avez aujourd\'hui une vision de l\'avancement de tous vos projets ?',
+    tip:'Pitch court, puis question ouverte. Laisser parler sans couper.',
+    color:'#1a0c2e', accent:'#f472b6',
+    choices:[
+      {label:'Via reporting de mes équipes', next:'mgr_s_reporting'},
+      {label:'Réunions d\'avancement régulières', next:'mgr_s_reunions'},
+      {label:'Dashboard / outil', next:'mgr_s_outil'},
+      {label:'Autre organisation', next:'mgr_miroir_autre'},
+    ],
+  },
+  mgr_s_reporting: {
+    id:'mgr_s_reporting', type:'reponse', label:'📊 Reporting équipes',
+    content:'Ce reporting, il remonte en temps réel ou c\'est plutôt hebdomadaire ?',
+    tip:'Un reporting non temps réel = risque de découvrir les problèmes trop tard.',
+    color:'#1a0c2e', accent:'#f472b6',
+    choices:[{label:'→ Creuser les difficultés', next:'mgr_pain'}],
+  },
+  mgr_s_reunions: {
+    id:'mgr_s_reunions', type:'reponse', label:'🤝 Réunions d\'avancement',
+    content:'Entre deux réunions, si un projet dérape, comment vous le découvrez ?',
+    tip:'Révéler l\'angle mort entre les réunions. C\'est souvent là que les retards s\'accumulent.',
+    color:'#1a0c2e', accent:'#f472b6',
+    choices:[{label:'→ Creuser les difficultés', next:'mgr_pain'}],
+  },
+  mgr_s_outil: {
+    id:'mgr_s_outil', type:'reponse', label:'🛠 Dashboard',
+    content:'Ce dashboard reflète l\'état réel du terrain, ou c\'est ce que vos PMs ont saisi manuellement ?',
+    tip:'Données automatiques vs saisie manuelle : différence clé.',
+    color:'#1a0c2e', accent:'#f472b6',
+    choices:[{label:'→ Creuser les difficultés', next:'mgr_pain'}],
+  },
+  mgr_miroir_autre: {
+    id:'mgr_miroir_autre', type:'question', label:'🪞 Préciser l\'organisation',
+    content:'Intéressant. Et au quotidien, ça vous donne une vision fiable de ce qui se passe vraiment sur le terrain ?',
+    tip:'Question ouverte. Laisser parler.',
+    color:'#1a0c2e', accent:'#f472b6',
+    choices:[{label:'→ Creuser les difficultés', next:'mgr_pain'}],
+  },
+
+  mgr_pain: {
+    id:'mgr_pain', type:'checklist', label:'🔥 Difficultés rencontrées',
+    items:[
+      'Il vous arrive de découvrir un problème ou un retard trop tard sur un projet ?',
+      'Vos PMs passent beaucoup de temps à faire remonter l\'info plutôt qu\'à piloter ?',
+      'Si vous deviez absorber 30 % de projets supplémentaires, votre organisation actuelle tiendrait ?',
+      'Y a-t-il eu des mauvaises surprises récentes en termes de délais ou de qualité ?',
+    ],
+    tip:'Deux pains principaux pour un Responsable PM : (1) manque de visibilité terrain, (2) incapacité à scaler sans recruter. Identifier lequel résonne.',
+    color:'#1a0c2e', accent:'#fb923c',
+    choices:[
+      {label:'Visibilité insuffisante / mauvaises surprises', next:'mgr_pain_visibilite'},
+      {label:'Difficile de scaler sans recruter', next:'mgr_pain_scale'},
+    ],
+  },
+  mgr_pain_visibilite: {
+    id:'mgr_pain_visibilite', type:'reponse', label:'👁 Manque de visibilité',
+    content:'Donc le risque, c\'est que des problèmes terrain s\'accumulent entre deux remontées, et vous les découvrez quand c\'est déjà trop tard pour réagir ?',
+    tip:'Reformuler en termes de risque opérationnel. Un Responsable PM est très sensible à ce qu\'il ne voit pas.',
+    color:'#1a0c2e', accent:'#fb923c',
+    choices:[{label:'→ Mesurer les conséquences', next:'mgr_impact'}],
+  },
+  mgr_pain_scale: {
+    id:'mgr_pain_scale', type:'reponse', label:'📈 Scalabilité bloquée',
+    content:'Donc la croissance est freinée par la capacité de suivi de vos équipes, pas par le nombre de projets disponibles sur le marché ?',
+    tip:'Très fort pour un Responsable PM avec des objectifs de croissance. Relier au recrutement évité.',
+    color:'#1a0c2e', accent:'#fb923c',
+    choices:[{label:'→ Mesurer les conséquences', next:'mgr_impact'}],
+  },
+
+  mgr_impact: {
+    id:'mgr_impact', type:'question', label:'📊 Conséquences concrètes',
+    content:'Et concrètement, ce manque de visibilité — comment ça se traduit pour vous ?\n\nImpact sur la satisfaction des clients, sur les marges, ou sur votre capacité à prendre plus de volume ?',
+    tip:'Laisser choisir. Ne pas orienter. La réponse détermine votre argument principal.',
+    color:'#160d2e', accent:'#a78bfa',
+    choices:[
+      {label:'Impact sur clients / réputation', next:'mgr_impact_clients'},
+      {label:'Impact sur les marges / coûts', next:'mgr_impact_marges'},
+      {label:'Frein à la croissance', next:'mgr_impact_croissance'},
+    ],
+  },
+  mgr_impact_clients: {
+    id:'mgr_impact_clients', type:'reponse', label:'🤝 Impact clients',
+    content:'Ces insatisfactions, ça a déjà eu un impact sur des renouvellements de contrats ou des recommandations ?',
+    tip:'Churn ou perte de recommandation = argument très fort.',
+    color:'#160d2e', accent:'#a78bfa',
+    choices:[{label:'→ Y a-t-il une urgence ?', next:'mgr_urgence'}],
+  },
+  mgr_impact_marges: {
+    id:'mgr_impact_marges', type:'reponse', label:'💰 Impact marges',
+    content:'Si vos PMs passaient moins de temps à coordonner — ils pourraient absorber combien de projets supplémentaires par mois ?',
+    tip:'ROI direct. Chiffrer si possible.',
+    color:'#160d2e', accent:'#a78bfa',
+    choices:[{label:'→ Y a-t-il une urgence ?', next:'mgr_urgence'}],
+  },
+  mgr_impact_croissance: {
+    id:'mgr_impact_croissance', type:'reponse', label:'🚀 Impact croissance',
+    content:'Vous avez un objectif de volume de projets à atteindre cette année ? Et l\'organisation actuelle vous permet de l\'atteindre sans recruter ?',
+    tip:'Si objectif de croissance sans recrutement → alignement direct avec notre solution.',
+    color:'#160d2e', accent:'#a78bfa',
+    choices:[{label:'→ Y a-t-il une urgence ?', next:'mgr_urgence'}],
+  },
+
+  mgr_urgence: {
+    id:'mgr_urgence', type:'question', label:'⏰ Urgence & timing',
+    content:'Est-ce qu\'il y a un moment dans les prochains mois où ce sujet devient vraiment prioritaire ?\n\nUne revue de direction, un objectif trimestriel, une saison haute qui approche ?',
+    tip:'Pour un Responsable PM, l\'urgence est souvent liée à un cycle budgétaire ou un objectif Q3/Q4.',
+    color:'#1a140a', accent:'#f59e0b',
+    choices:[
+      {label:'Oui — deadline ou objectif précis', next:'mgr_urgence_oui'},
+      {label:'Pas d\'urgence identifiée', next:'mgr_urgence_non'},
+    ],
+  },
+  mgr_urgence_oui: {
+    id:'mgr_urgence_oui', type:'reponse', label:'🎯 Urgence identifiée',
+    content:'Si on ne met rien en place avant cette date — quel est le risque concret en termes de volume ou de satisfaction clients ?',
+    tip:'Ancrer la conséquence de l\'inaction. C\'est votre levier pour le closing.',
+    color:'#1a140a', accent:'#f59e0b',
+    choices:[{label:'→ Vérifier le pouvoir de décision', next:'mgr_decision'}],
+  },
+  mgr_urgence_non: {
+    id:'mgr_urgence_non', type:'reponse', label:'📆 Pas d\'urgence claire',
+    content:'"Je comprends. Si dans 6 mois votre organisation n\'a pas évolué, vous aurez atteint vos objectifs de volume ?"',
+    tip:'Question directe sur le coût de l\'inaction. Si pas d\'urgence → qualifier si le prospect est vraiment mûr.',
+    color:'#1a140a', accent:'#f59e0b',
+    choices:[{label:'→ Vérifier le pouvoir de décision', next:'mgr_decision'}],
+  },
+
+  mgr_decision: {
+    id:'mgr_decision', type:'checklist', label:'🔑 Décision & organisation',
+    items:[
+      'Pour un investissement de ce type, c\'est vous qui décidez ou c\'est validé en comité ?',
+      'Vous avez un budget outillage / productivité dans votre équipe ?',
+      'Quels critères utilisez-vous pour évaluer ce type de solution ?',
+      'Y a-t-il d\'autres parties prenantes à impliquer — DSI, Finance, DG ?',
+    ],
+    tip:'Un Responsable PM peut avoir besoin de la DSI ou de la DG. Cartographier tous les décideurs avant de passer à la démo.',
+    color:'#0a1a12', accent:'#34d399',
+    choices:[
+      {label:'Décideur — budget propre', next:'mgr_decision_oui'},
+      {label:'Validation DG / DSI nécessaire', next:'mgr_decision_non'},
+    ],
+  },
+  mgr_decision_oui: {
+    id:'mgr_decision_oui', type:'reponse', label:'✅ Pouvoir de décision',
+    content:'Parfait. Si ce qu\'on vous montre répond aux problèmes que vous m\'avez décrits, vous seriez en mesure de décider sur quel horizon ?',
+    tip:'Qualifier le délai de décision. Éviter les "on verra".',
+    color:'#0a1a12', accent:'#34d399',
+    choices:[{label:'→ Présenter la solution', next:'mgr_solution'}],
+  },
+  mgr_decision_non: {
+    id:'mgr_decision_non', type:'reponse', label:'👥 Décision en comité',
+    content:'Tout à fait normal. Pour gagner du temps, est-ce qu\'on pourrait prévoir une démo courte avec les bonnes personnes en même temps ? Ça évite les allers-retours.',
+    tip:'Toujours chercher à accéder au décideur final. Ne pas vendre via un intermédiaire.',
+    color:'#0a1a12', accent:'#34d399',
+    choices:[{label:'→ Présenter la solution', next:'mgr_solution'}],
+  },
+
+  mgr_solution: {
+    id:'mgr_solution', type:'solution', label:'💡 Solution',
+    content:'On installe un système de suivi visuel automatisé sur les chantiers de vos équipes.\n\nConcrètement :\n• Vos PMs ont une vision en temps réel de chaque chantier\n• Vous avez un dashboard global de tous les projets\n• Moins de coordination = vos PMs gèrent plus de projets\n\nCertaines équipes absorbent 30 à 50 % de projets supplémentaires sans recruter.',
+    color:'#1a0c2e', accent:'#f472b6',
+    choices:[{label:'→ Proposer un rendez-vous', next:'mgr_closing'}],
+  },
+  mgr_closing: {
+    id:'mgr_closing', type:'closing', label:'📅 Closing',
+    content:'L\'objectif de mon appel était juste de vérifier si c\'était pertinent — et ce que vous m\'avez décrit ressemble vraiment à ce qu\'on aide à résoudre.\n\nJe vous propose 20 minutes pour vous montrer comment des équipes similaires ont résolu ce problème, et vous jugerez par vous-même.\n\nJeudi ou vendredi, qu\'est-ce qui vous conviendrait ?',
+    tip:'Personnaliser en rappelant le problème principal évoqué et l\'urgence identifiée.',
+    color:'#1a0c2e', accent:'#f472b6', choices:[],
+  },
+};
+
+// ══════════════════════════════════════════════════════════════
+const PERSONAS = {
+  pm:  { label:'🧑‍💼 Project Manager', accent:'#34d399', startNode:'start' },
+  mgr: { label:'👔 Responsable PM',    accent:'#f472b6', startNode:'start_mgr' },
+};
+
+function loadNodes() {
+  try { const s=localStorage.getItem('scriptnav_v3'); if(s) return JSON.parse(s); } catch(e){}
+  return JSON.parse(JSON.stringify(DEFAULT_NODES));
+}
+function saveNodes() { localStorage.setItem('scriptnav_v3',JSON.stringify(NODES)); flashSave(); }
+
+let NODES = loadNodes();
+let history = [];
+let currentPersona = null;
+let editingId = null;
+
+// ── PERSONA ──
+function selectPersona(p) {
+  currentPersona = p;
+  document.getElementById('card-pm').classList.toggle('selected', p==='pm');
+  document.getElementById('card-mgr').classList.toggle('selected', p==='mgr');
+  const btn = document.getElementById('persona-start-btn');
+  btn.classList.add('ready');
+  btn.textContent = p==='pm' ? '▶ LANCER — Project Manager' : '▶ LANCER — Responsable PM';
+}
+function startCall() {
+  if(!currentPersona) return;
+  history = [PERSONAS[currentPersona].startNode];
+  const badge = document.getElementById('persona-badge-value');
+  badge.textContent = PERSONAS[currentPersona].label;
+  badge.style.color = PERSONAS[currentPersona].accent;
+  switchTab('play');
+  renderPlay();
+}
+function changePersona() {
+  currentPersona = null;
+  ['card-pm','card-mgr'].forEach(id=>document.getElementById(id).classList.remove('selected'));
+  const btn = document.getElementById('persona-start-btn');
+  btn.classList.remove('ready');
+  btn.textContent = '▶ LANCER L\'APPEL';
+  showPersonaView();
+}
+function showPersonaView() {
+  document.getElementById('persona-view').classList.add('active');
+  document.getElementById('play-view').classList.remove('active');
+  document.getElementById('edit-view').classList.remove('active');
+  document.getElementById('tab-play').classList.add('active');
+  document.getElementById('tab-edit').classList.remove('active');
+}
+
+// ── TAB ──
+function switchTab(t) {
+  if(t==='play' && !currentPersona) { showPersonaView(); return; }
+  document.getElementById('persona-view').classList.remove('active');
+  document.getElementById('play-view').classList.toggle('active', t==='play');
+  document.getElementById('edit-view').classList.toggle('active', t==='edit');
+  document.getElementById('tab-play').classList.toggle('active', t==='play');
+  document.getElementById('tab-edit').classList.toggle('active', t==='edit');
+  if(t==='edit') renderEditGrid();
+}
+
+// ── PLAY ──
+function resetPlay() {
+  if(!currentPersona) return;
+  history = [PERSONAS[currentPersona].startNode];
+  renderPlay();
+}
+function goBack() { if(history.length>1){history.pop();renderPlay();} }
+
+function renderPlay() {
+  const id = history[history.length-1];
+  const node = NODES[id];
+  if(!node){ toast('⚠️ Étape introuvable : '+id); return; }
+  const a = node.accent;
+
+  document.getElementById('bg-grid').style.backgroundImage =
+    `linear-gradient(${a}15 1px,transparent 1px),linear-gradient(90deg,${a}15 1px,transparent 1px)`;
+
+  // crumbs
+  const crumbs = document.getElementById('bc-crumbs');
+  crumbs.innerHTML = '';
+  history.forEach((hid,i) => {
+    if(i>0){const s=document.createElement('span');s.className='bc-sep';s.textContent=' › ';crumbs.appendChild(s);}
+    const c=document.createElement('span');
+    c.className='bc-crumb'+(i===history.length-1?' active':' clickable');
+    c.style.color=i===history.length-1?a:'#7d8590';
+    c.textContent=(NODES[hid]||{label:hid}).label;
+    if(i<history.length-1) c.onclick=()=>{history=history.slice(0,i+1);renderPlay();};
+    crumbs.appendChild(c);
+  });
+
+  // card
+  const card=document.getElementById('play-card');
+  card.style.animation='none'; card.offsetHeight; card.style.animation='fadeSlide .22s ease';
+  card.style.background=`linear-gradient(160deg,${node.color}f2,${node.color}cc)`;
+  card.style.borderColor=a+'55';
+  card.style.boxShadow=`0 0 40px ${a}18,0 8px 40px rgba(0,0,0,.7)`;
+  document.getElementById('card-topbar').style.background=`linear-gradient(90deg,transparent,${a},transparent)`;
+
+  const tag=document.getElementById('card-tag');
+  tag.textContent=TYPE_TAG[node.type]||node.type.toUpperCase();
+  tag.style.color=a; tag.style.background=a+'18'; tag.style.borderColor=a+'33';
+  document.getElementById('card-title').textContent=node.label;
+
+  // body
+  const body=document.getElementById('card-body');
+  body.innerHTML='';
+  if(node.content){
+    const box=document.createElement('div'); box.className='content-box';
+    box.style.borderColor=a+'22'; box.textContent=node.content; body.appendChild(box);
+  }
+  if(node.items&&node.items.length){
+    const wrap=document.createElement('div'); wrap.className='checklist-wrap'; wrap.style.borderColor=a+'22';
+    node.items.forEach((item,i)=>{
+      const row=document.createElement('div'); row.className='check-item'; row.style.borderBottomColor=a+'15';
+      const num=document.createElement('span'); num.className='check-num';
+      num.style.background=a+'20'; num.style.borderColor=a+'44'; num.style.color=a; num.textContent=i+1;
+      const txt=document.createElement('span'); txt.className='check-text'; txt.textContent=item;
+      row.appendChild(num); row.appendChild(txt); wrap.appendChild(row);
+    });
+    body.appendChild(wrap);
+  }
+  if(node.tip){
+    const tip=document.createElement('div'); tip.className='tip-box';
+    tip.style.borderLeftColor=a+'66';
+    tip.textContent='💡 '+node.tip;
+    body.appendChild(tip);
+  }
+
+  // choices
+  const choicesEl=document.getElementById('card-choices');
+  const endEl=document.getElementById('card-end');
+  choicesEl.innerHTML='';
+  if(node.choices&&node.choices.length){
+    endEl.style.display='none'; choicesEl.style.display='flex';
+    const lbl=document.createElement('div'); lbl.className='choices-lbl'; lbl.textContent='RÉPONSE DU PROSPECT'; choicesEl.appendChild(lbl);
+    node.choices.forEach((c,i)=>{
+      const btn=document.createElement('button'); btn.className='choice-btn'; btn.style.borderColor=a+'44';
+      const num=document.createElement('span'); num.className='choice-num';
+      num.style.background=a+'20'; num.style.borderColor=a+'33'; num.style.color=a; num.textContent=i+1;
+      btn.appendChild(num); btn.appendChild(document.createTextNode(c.label));
+      btn.onmouseenter=()=>{btn.style.background=a+'18';btn.style.borderColor=a;btn.style.color='#fff';};
+      btn.onmouseleave=()=>{btn.style.background='transparent';btn.style.borderColor=a+'44';btn.style.color='#cdd9e5';};
+      btn.onclick=()=>{history.push(c.next);renderPlay();};
+      choicesEl.appendChild(btn);
+    });
+  } else {
+    choicesEl.style.display='none'; endEl.style.display='block';
+    const em=document.getElementById('end-msg');
+    em.style.color=a; em.style.background=a+'10'; em.style.borderColor=a+'33';
+  }
+  document.getElementById('play-back').style.display=history.length>1?'block':'none';
+}
+
+// ── EDIT GRID ──
+function renderEditGrid() {
+  const grid=document.getElementById('node-grid');
+  grid.innerHTML='';
+  Object.values(NODES).forEach(node=>{
+    const a=node.accent;
+    const card=document.createElement('div'); card.className='node-card';
+    const top=document.createElement('div'); top.className='node-card-top';
+    top.style.background=`linear-gradient(90deg,transparent,${a},transparent)`;
+    const head=document.createElement('div'); head.className='node-card-head';
+    const title=document.createElement('div'); title.className='node-card-title'; title.textContent=node.label;
+    const tt=document.createElement('div'); tt.className='node-card-type';
+    tt.textContent=TYPE_TAG[node.type]||node.type; tt.style.color=a; tt.style.background=a+'18'; tt.style.borderColor=a+'33';
+    head.appendChild(title); head.appendChild(tt);
+    const body=document.createElement('div'); body.className='node-card-body';
+    if(node.content||(node.items&&node.items.length)){
+      const ct=document.createElement('div'); ct.className='node-card-content';
+      ct.textContent=node.content||node.items.join(' — '); body.appendChild(ct);
+    }
+    const chips=document.createElement('div'); chips.className='node-card-choices';
+    if(node.choices&&node.choices.length){
+      node.choices.forEach(c=>{const chip=document.createElement('div');chip.className='choice-chip';chip.textContent='→ '+c.label;chips.appendChild(chip);});
+    } else {
+      const chip=document.createElement('div');chip.className='choice-chip';
+      chip.textContent='∅ Fin';chip.style.color='#f85149';chip.style.borderColor='rgba(248,81,73,.27)';chips.appendChild(chip);
+    }
+    const actions=document.createElement('div'); actions.className='node-card-actions';
+    const be=document.createElement('button'); be.className='btn-edit-node'; be.textContent='✏️ Modifier'; be.onclick=()=>openModal(node.id);
+    const bd=document.createElement('button'); bd.className='btn-del-node'; bd.textContent='🗑'; bd.onclick=()=>confirmDelete(node.id);
+    actions.appendChild(be); actions.appendChild(bd);
+    card.appendChild(top); card.appendChild(head); card.appendChild(body); card.appendChild(chips); card.appendChild(actions);
+    grid.appendChild(card);
+  });
+}
+
+// ── MODAL ──
+function openModal(id) {
+  editingId=id;
+  const isNew=!id;
+  document.getElementById('modal-title').textContent=isNew?'+ Nouvelle étape':'✏️ Modifier l\'étape';
+  document.getElementById('modal-overlay').classList.add('open');
+  const node=id?NODES[id]:{id:'',label:'',type:'question',content:'',tip:'',color:'#0c1a2e',accent:'#34d399',choices:[],items:[]};
+  document.getElementById('f-id').value=node.id||'';
+  document.getElementById('f-id').disabled=!isNew;
+  document.getElementById('f-id').style.opacity=isNew?'1':'0.5';
+  document.getElementById('f-label').value=node.label||'';
+  document.getElementById('f-type').value=node.type||'question';
+  document.getElementById('f-content').value=node.content||'';
+  document.getElementById('f-tip').value=node.tip||'';
+  document.getElementById('f-color').value=node.color||'#0c1a2e';
+  document.getElementById('f-color-hex').value=node.color||'#0c1a2e';
+  document.getElementById('f-accent').value=node.accent||'#34d399';
+  document.getElementById('f-accent-hex').value=node.accent||'#34d399';
+  document.getElementById('f-color').oninput=()=>{document.getElementById('f-color-hex').value=document.getElementById('f-color').value;};
+  document.getElementById('f-accent').oninput=()=>{document.getElementById('f-accent-hex').value=document.getElementById('f-accent').value;};
+  const cl=document.getElementById('choices-list'); cl.innerHTML='';
+  (node.choices||[]).forEach(c=>addChoiceRow(c.label,c.next));
+  const il=document.getElementById('items-list'); il.innerHTML='';
+  (node.items||[]).forEach(item=>addItemRow(item));
+  onTypeChange();
+}
+function onTypeChange() {
+  const t=document.getElementById('f-type').value;
+  document.getElementById('f-content-group').style.display=t==='checklist'?'none':'block';
+  document.getElementById('f-items-group').style.display=t==='checklist'?'block':'none';
+}
+function addChoiceRow(label='',next='') {
+  const cl=document.getElementById('choices-list');
+  const row=document.createElement('div'); row.className='choice-row';
+  const inner=document.createElement('div'); inner.className='choice-row-inner';
+  const inp=document.createElement('input'); inp.placeholder='Texte de la réponse'; inp.value=label;
+  const sel=document.createElement('select');
+  sel.innerHTML='<option value="">— Étape suivante —</option>'+Object.values(NODES).map(n=>`<option value="${n.id}">${n.label} [${n.id}]</option>`).join('');
+  sel.value=next;
+  inner.appendChild(inp); inner.appendChild(sel);
+  const rm=document.createElement('button'); rm.className='btn-rm-choice'; rm.textContent='×'; rm.onclick=()=>row.remove();
+  row.appendChild(inner); row.appendChild(rm); cl.appendChild(row);
+}
+function addItemRow(val='') {
+  const il=document.getElementById('items-list');
+  const row=document.createElement('div'); row.className='item-row';
+  const inp=document.createElement('input'); inp.placeholder='Ex: Combien de projets en parallèle ?'; inp.value=val;
+  const rm=document.createElement('button'); rm.className='btn-rm-item'; rm.textContent='×'; rm.onclick=()=>row.remove();
+  row.appendChild(inp); row.appendChild(rm); il.appendChild(row);
+}
+function syncColorFromHex(pickerId,hexId) {
+  const v=document.getElementById(hexId).value;
+  if(/^#[0-9a-fA-F]{6}$/.test(v)) document.getElementById(pickerId).value=v;
+}
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); editingId=null; }
+function saveNode() {
+  const id=document.getElementById('f-id').value.trim().replace(/\s+/g,'_');
+  const label=document.getElementById('f-label').value.trim();
+  const type=document.getElementById('f-type').value;
+  const content=document.getElementById('f-content').value.trim();
+  const tip=document.getElementById('f-tip').value.trim();
+  const color=document.getElementById('f-color').value;
+  const accent=document.getElementById('f-accent').value;
+  if(!id){toast('⚠️ L\'ID est requis');return;}
+  if(!label){toast('⚠️ Le titre est requis');return;}
+  if(!editingId&&NODES[id]){toast('⚠️ Cet ID existe déjà');return;}
+  const choices=[];
+  document.querySelectorAll('#choices-list .choice-row').forEach(row=>{
+    const [inp,sel]=row.querySelectorAll('input,select');
+    if(inp.value.trim()&&sel.value) choices.push({label:inp.value.trim(),next:sel.value});
+  });
+  const items=[];
+  document.querySelectorAll('#items-list .item-row input').forEach(inp=>{if(inp.value.trim())items.push(inp.value.trim());});
+  const node={id,label,type,color,accent,choices};
+  if(type==='checklist') node.items=items; else node.content=content;
+  if(tip) node.tip=tip;
+  if(editingId&&editingId!==id) delete NODES[editingId];
+  NODES[id]=node;
+  saveNodes(); renderEditGrid(); closeModal(); toast('✓ Étape sauvegardée');
+}
+
+// ── DELETE ──
+let pendingDeleteId=null;
+function confirmDelete(id){pendingDeleteId=id;document.getElementById('confirm-overlay').classList.add('open');}
+function closeConfirm(){document.getElementById('confirm-overlay').classList.remove('open');pendingDeleteId=null;}
+document.getElementById('confirm-yes-btn').onclick=()=>{
+  if(pendingDeleteId){delete NODES[pendingDeleteId];saveNodes();renderEditGrid();toast('🗑 Étape supprimée');}
+  closeConfirm();
+};
+
+// ── UTILS ──
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
+let saveTimer;
+function flashSave(){const b=document.getElementById('save-badge');b.style.display='block';clearTimeout(saveTimer);saveTimer=setTimeout(()=>b.style.display='none',2000);}
+</script>
+</body>
+</html>
